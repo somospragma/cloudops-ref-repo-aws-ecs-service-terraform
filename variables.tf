@@ -88,10 +88,10 @@ variable "environment" {
   type = string
 }
 
-# variable "project" {
-#     description = "Nombre Del Proyecto"
-#     type = string
-# }
+variable "project" {
+    description = "Nombre Del Proyecto"
+    type = string
+}
 
 variable "functionality" {
     description = "Nombre Del Proyecto"
