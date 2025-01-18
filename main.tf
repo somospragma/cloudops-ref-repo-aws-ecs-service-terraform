@@ -1,4 +1,5 @@
 resource "aws_ecs_task_definition" "task" {
+  provider = aws.project
   # Definimos la tarea ECS
   for_each = { for item in var.ecs_config :
     item.application => {
@@ -122,6 +123,7 @@ resource "aws_ecs_task_definition" "task" {
 }
 
 resource "aws_ecs_service" "ecs_service" {
+  provider = aws.project
   for_each = { for item in var.ecs_config :
     item.application => {
       "index" : index(var.ecs_config, item)
@@ -191,6 +193,7 @@ resource "aws_ecs_service" "ecs_service" {
 
 
 resource "aws_cloudwatch_log_group" "log" {
+  provider = aws.project
   for_each = { for item in var.ecs_config :
     item.application => {
       "index" : index(var.ecs_config, item)
@@ -206,6 +209,7 @@ resource "aws_cloudwatch_log_group" "log" {
 
 
 resource "aws_appautoscaling_target" "ecs_target" {
+  provider = aws.project
   for_each = { for item in var.ecs_config :
     item.application => {
       "index" : index(var.ecs_config, item)
@@ -226,6 +230,7 @@ resource "aws_appautoscaling_target" "ecs_target" {
 
 
 resource "aws_appautoscaling_policy" "ecs_policy" {
+  provider = aws.project
   for_each = { for item in var.ecs_config :
     item.application => {
       "index" : index(var.ecs_config, item)

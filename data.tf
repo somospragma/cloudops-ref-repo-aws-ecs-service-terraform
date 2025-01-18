@@ -1,4 +1,5 @@
 data "aws_ecs_cluster" "cluster" {
+  provider = aws.project
   for_each = { for item in var.ecs_config :
     item.application => {
       "cluster_name" : item.cluster_name
@@ -8,11 +9,15 @@ data "aws_ecs_cluster" "cluster" {
 }
 
 
-data "aws_region" "current" {}
+data "aws_region" "current" {
+  provider = aws.project
+}
 
 
 
 ########################################################################
 #Data Account ID
 ########################################################################
-data "aws_caller_identity" "current" {}
+data "aws_caller_identity" "current" {
+  provider = aws.project
+}
