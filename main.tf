@@ -189,9 +189,6 @@ resource "aws_ecs_service" "ecs_service" {
   )
 }
 
-
-
-
 resource "aws_cloudwatch_log_group" "log" {
   provider = aws.project
   for_each = { for item in var.ecs_config :
