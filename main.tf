@@ -200,9 +200,9 @@ resource "aws_cloudwatch_log_group" "log" {
       "application" : item.application
     }
   }
-  name              = "/ecs/${each.key}"
+  name              = "/aws/ecs/${each.key}"
   retention_in_days = 0
-  tags = merge({ Name = "${join("-", tolist([var.client, var.environment, each.key, "log"]))}" },
+  tags = merge({ Name = "${join("-", tolist([var.client, var.project, var.environment, each.key, "log"]))}" },
     { application_id = "${each.key}" },
   var.tags)
 }
