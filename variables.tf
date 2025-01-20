@@ -21,7 +21,7 @@ variable "ecs_config" {
       name  = string
       value = string
     }))
-    application = string
+    functionality = string
     image       = string
     volumes = list(object({
       read_only          = bool
@@ -93,7 +93,7 @@ variable "project" {
     type = string
 }
 
-variable "functionality" {
+variable "application" {
     description = "Nombre Del Proyecto"
     type = string
 }

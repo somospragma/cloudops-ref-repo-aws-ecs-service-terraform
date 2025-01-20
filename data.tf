@@ -1,7 +1,7 @@
 data "aws_ecs_cluster" "cluster" {
   provider = aws.project
   for_each = { for item in var.ecs_config :
-    item.application => {
+    item.functionality => {
       "cluster_name" : item.cluster_name
     }
   }

@@ -2,7 +2,7 @@ resource "aws_ecs_task_definition" "task" {
   provider = aws.project
   # Definimos la tarea ECS
   for_each = { for item in var.ecs_config :
-    item.application => {
+    item.functionality => {
       "index" : index(var.ecs_config, item)
       "execution_role_arn" : item.execution_role_arn
       "task_role_arn" : item.task_role_arn
@@ -27,7 +27,7 @@ resource "aws_ecs_task_definition" "task" {
 
   container_definitions = jsonencode(concat([
     {
-      "name"      = join("-", [var.client, var.functionality, var.environment, "task", each.key, each.value["index"] + 1])
+      "name"      = join("-", [var.client, var.project, var.environment, "task", var.application, each.key])
       "image"     = "${each.value["image"]}:${each.value["image_version"]}",
       "cpu"       = each.value["cpu_container"],
       "memory"    = each.value["memory"],
@@ -88,7 +88,7 @@ resource "aws_ecs_task_definition" "task" {
   ]))
 
   execution_role_arn       = each.value["execution_role_arn"]
-  family                   = join("-", tolist([var.client, var.functionality, var.environment, "task", each.key, each.value["index"] + 1]))
+  family                   = join("-", tolist([var.client, var.project, var.environment, "task", var.application, each.key]))
   network_mode             = each.value["network_mode"]
   memory                   = each.value["memory"]
   cpu                      = each.value["cpu"]
@@ -116,8 +116,8 @@ resource "aws_ecs_task_definition" "task" {
   }
 
   tags = merge(
-    { Name = "${join("-", tolist([var.client, var.functionality, var.environment, "task", each.key, each.value["index"] + 1]))}" },
-    { application_id = "${each.key}" },
+    { Name = "${join("-", tolist([var.client, var.project, var.environment, "task", var.application, each.key]))}" },
+    { functionality_id = "${each.key}" },
     var.tags
   )
 }
@@ -125,7 +125,7 @@ resource "aws_ecs_task_definition" "task" {
 resource "aws_ecs_service" "ecs_service" {
   provider = aws.project
   for_each = { for item in var.ecs_config :
-    item.application => {
+    item.functionality => {
       "index" : index(var.ecs_config, item)
       "desired_count" : item.desired_count,
       "health_check_grace_period_seconds" : item.health_check_grace_period_seconds,
@@ -142,7 +142,7 @@ resource "aws_ecs_service" "ecs_service" {
 
   cluster       = data.aws_ecs_cluster.cluster[each.key].id
   desired_count = each.value["desired_count"]
-  name          = join("-", tolist([var.client, var.functionality, var.environment, "service", each.key, each.value["index"] + 1]))
+  name          = join("-", tolist([var.client, var.project, var.environment, "service", var.application, each.key]))
   #health_check_grace_period_seconds = each.value["health_check_grace_period_seconds"]
   task_definition        = aws_ecs_task_definition.task[each.key].arn
   enable_execute_command = true
@@ -183,8 +183,8 @@ resource "aws_ecs_service" "ecs_service" {
   }
 
   tags = merge(
-    { Name = "${join("-", tolist([var.client, var.functionality, var.environment, "service", each.key, each.value["index"] + 1]))}" },
-    { application_id = "${each.key}" },
+    { Name = "${join("-", tolist([var.client, var.project, var.environment, "service", var.application, each.key]))}" },
+    { functionality_id = "${each.key}" },
     var.tags
   )
 }
@@ -192,15 +192,15 @@ resource "aws_ecs_service" "ecs_service" {
 resource "aws_cloudwatch_log_group" "log" {
   provider = aws.project
   for_each = { for item in var.ecs_config :
-    item.application => {
+    item.functionality => {
       "index" : index(var.ecs_config, item)
-      "application" : item.application
+      "functionality" : item.functionality
     }
   }
-  name              = "/aws/ecs/${each.key}"
+  name              = "/aws/ecs/${var.application}/${each.key}"
   retention_in_days = 0
-  tags = merge({ Name = "${join("-", tolist([var.client, var.project, var.environment, each.key, "log"]))}" },
-    { application_id = "${each.key}" },
+  tags = merge({ Name = "${join("-", tolist([var.client, var.project, var.environment, "log", var.application, each.key]))}" },
+    { functionality_id = "${each.key}" },
   var.tags)
 }
 
@@ -208,7 +208,7 @@ resource "aws_cloudwatch_log_group" "log" {
 resource "aws_appautoscaling_target" "ecs_target" {
   provider = aws.project
   for_each = { for item in var.ecs_config :
-    item.application => {
+    item.functionality => {
       "index" : index(var.ecs_config, item)
       "cluster_name" : item.cluster_name
       "max_capacity" : item.autoscaling.max_capacity
@@ -220,8 +220,8 @@ resource "aws_appautoscaling_target" "ecs_target" {
   resource_id        = "service/${each.value["cluster_name"]}/${aws_ecs_service.ecs_service[each.key].name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
-  tags = merge({ Name = "${join("-", tolist([var.client, var.environment, each.key, "tag"]))}" },
-    { application_id = "${each.key}" },
+  tags = merge({ Name = "${join("-", tolist([var.client, var.project, var.environment, var.application, each.key, "tag"]))}" },
+    { functionality_id = "${each.key}" },
   var.tags)
 }
 
@@ -229,7 +229,7 @@ resource "aws_appautoscaling_target" "ecs_target" {
 resource "aws_appautoscaling_policy" "ecs_policy" {
   provider = aws.project
   for_each = { for item in var.ecs_config :
-    item.application => {
+    item.functionality => {
       "index" : index(var.ecs_config, item)
       "cluster_name" : item.cluster_name
       "target_value" : item.autoscaling.target_value
@@ -237,7 +237,7 @@ resource "aws_appautoscaling_policy" "ecs_policy" {
       "scale_out_cooldown" : item.autoscaling.scale_out_cooldown
     } if item.autoscaling != null
   }
-  name               = join("-", tolist([var.client, var.environment, each.key, "policy"]))
+  name               = join("-", tolist([var.client, var.project, var.environment, "policy", var.application, each.key]))
   policy_type        = "TargetTrackingScaling"
   resource_id        = aws_appautoscaling_target.ecs_target[each.key].resource_id
   scalable_dimension = aws_appautoscaling_target.ecs_target[each.key].scalable_dimension
