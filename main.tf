@@ -62,27 +62,20 @@ resource "aws_ecs_task_definition" "task" {
         },
         "secretOptions" : []
       },
-
-      "entryPoint" = length(lookup(each.value, "entry_point", [])) > 0 ? each.value["entry_point"] : ["/bin/sh", "-c"],
-
-      "command" = length(lookup(each.value, "command", [])) > 0 ? each.value["command"] : [],
-
-
-
+      "entryPoint" = length(lookup(each.value, "entry_point", null)) > 0 ? each.value["entry_point"] : null,
+      "command" = length(lookup(each.value, "command", null)) > 0 ? each.value["command"] : null,
       "secrets" = flatten([
         for secret in each.value["secrets"] : {
           "name"      = secret.name,
           "valueFrom" = secret.arn
         }
       ]),
-
       "parameters" = flatten([
         for param in each.value["parameters"] : {
           "name"      = param.name,
           "valueFrom" = param.arn
         }
       ])
-
       "systemControls" : []
     }
   ]))
@@ -161,7 +154,7 @@ resource "aws_ecs_service" "ecs_service" {
   dynamic "load_balancer" {
     for_each = each.value["target_group_arn"] != "" ? [1] : []
     content {
-      container_name   = join("-", tolist([var.client, var.environment, each.key, "task"]))
+      container_name   = join("-", tolist([var.client, var.project, var.environment, "task", var.application, each.key, ]))
       container_port   = each.value["container_port"]
       target_group_arn = each.value["target_group_arn"]
     }
