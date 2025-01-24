@@ -1,0 +1,27 @@
+###########################################
+########## Common variables ###############
+###########################################
+
+profile     = "profile01"
+aws_region  = "us-east-1"
+environment = "dev"
+client      = "cliente01"
+project     = "proyecto01"
+application = "app01"
+common_tags = {
+  environment   = "dev"
+  project-name  = "proyecto01"
+  cost-center   = "xxx"
+  owner         = "xxx"
+  area          = "xxx"
+  provisioned   = "xxx"
+  datatype      = "xxx"
+}
+
+#################################################
+# ECS - Service - Task - Variables
+#################################################
+cpu = 256
+memory = 512
+port = "80"
+url_image_respository = "008971642453.dkr.ecr.us-east-1.amazonaws.com/pragma-fc-dev-nginx-ecr"

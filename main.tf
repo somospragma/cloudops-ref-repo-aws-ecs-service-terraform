@@ -1,6 +1,10 @@
+###########################################
+######## ECS Service Resources ############
+###########################################
+
 resource "aws_ecs_task_definition" "task" {
   provider = aws.project
-  # Definimos la tarea ECS
+
   for_each = { for item in var.ecs_config :
     item.functionality => {
       "index" : index(var.ecs_config, item)
@@ -57,7 +61,7 @@ resource "aws_ecs_task_definition" "task" {
           "mode" : "non-blocking",
           "awslogs-create-group" : "true",
           "max-buffer-size" : "25m",
-          "awslogs-region" : "us-east-1",
+          "awslogs-region" : var.aws_region, #PENDING
           "awslogs-stream-prefix" : "ecs"
         },
         "secretOptions" : []
@@ -110,8 +114,7 @@ resource "aws_ecs_task_definition" "task" {
 
   tags = merge(
     { Name = "${join("-", tolist([var.client, var.project, var.environment, "task", var.application, each.key]))}" },
-    { functionality_id = "${each.key}" },
-    var.tags
+    { functionality_id = "${each.key}" }
   )
 }
 
@@ -136,7 +139,6 @@ resource "aws_ecs_service" "ecs_service" {
   cluster       = data.aws_ecs_cluster.cluster[each.key].id
   desired_count = each.value["desired_count"]
   name          = join("-", tolist([var.client, var.project, var.environment, "service", var.application, each.key]))
-  #health_check_grace_period_seconds = each.value["health_check_grace_period_seconds"]
   task_definition        = aws_ecs_task_definition.task[each.key].arn
   enable_execute_command = true
 
@@ -160,9 +162,8 @@ resource "aws_ecs_service" "ecs_service" {
     }
   }
 
-  # Condicional para el health_check_grace_period_seconds solo si hay un balanceador de carga
+  # Conditional for health_check_grace_period_seconds in case only has a load balancer
   health_check_grace_period_seconds = each.value["target_group_arn"] != "" ? each.value["health_check_grace_period_seconds"] : 0
-
 
   network_configuration {
     security_groups  = each.value["security_groups"]
@@ -177,8 +178,7 @@ resource "aws_ecs_service" "ecs_service" {
 
   tags = merge(
     { Name = "${join("-", tolist([var.client, var.project, var.environment, "service", var.application, each.key]))}" },
-    { functionality_id = "${each.key}" },
-    var.tags
+    { functionality_id = "${each.key}" }
   )
 }
 
@@ -193,10 +193,8 @@ resource "aws_cloudwatch_log_group" "log" {
   name              = "/aws/ecs/${var.application}/${each.key}"
   retention_in_days = 0
   tags = merge({ Name = "${join("-", tolist([var.client, var.project, var.environment, "log", var.application, each.key]))}" },
-    { functionality_id = "${each.key}" },
-  var.tags)
+    { functionality_id = "${each.key}" })
 }
-
 
 resource "aws_appautoscaling_target" "ecs_target" {
   provider = aws.project
@@ -214,10 +212,8 @@ resource "aws_appautoscaling_target" "ecs_target" {
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
   tags = merge({ Name = "${join("-", tolist([var.client, var.project, var.environment, var.application, each.key, "tag"]))}" },
-    { functionality_id = "${each.key}" },
-  var.tags)
+    { functionality_id = "${each.key}" })
 }
-
 
 resource "aws_appautoscaling_policy" "ecs_policy" {
   provider = aws.project
