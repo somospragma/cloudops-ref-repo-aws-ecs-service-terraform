@@ -1,3 +1,72 @@
+variable "aws_region" {
+  description = "Región de AWS donde se desplegarán los recursos"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "profile" {
+  description = "Perfil de AWS a utilizar"
+  type        = string
+}
+
+variable "environment" {
+  description = "Entorno de despliegue (dev, qa, pdn)"
+  type        = string
+  
+  validation {
+    condition     = contains(["dev", "qa", "pdn"], var.environment)
+    error_message = "El entorno debe ser uno de: dev, qa, pdn."
+  }
+}
+
+variable "client" {
+  description = "Nombre del cliente"
+  type        = string
+}
+
+variable "project" {
+  description = "Nombre del proyecto"
+  type        = string
+}
+
+variable "common_tags" {
+  description = "Etiquetas comunes para todos los recursos"
+  type        = map(string)
+}
+
+variable "cluster_config" {
+  description = "Configuración del cluster ECS"
+  type = map(object({
+    containerInsights       = string
+    enableCapacityProviders = bool
+    additional_tags         = map(string)
+  }))
+}
+
+variable "namespaces" {
+  description = "Configuración de los namespaces de Cloud Map"
+  type = map(object({
+    name        = optional(string, null)
+    description = optional(string, "")
+    type        = optional(string, "HTTP")  # HTTP, DNS_PRIVATE, DNS_PUBLIC
+    vpc_id      = optional(string, null)    # Requerido para DNS_PRIVATE
+    
+    # Solo para namespaces DNS
+    dns_properties = optional(object({
+      dns_ttl             = optional(number, 60)
+      routing_policy      = optional(string, "MULTIVALUE")  # MULTIVALUE o WEIGHTED
+      soa = optional(object({
+        ttl     = optional(number, 900)
+        contact = optional(string, "")
+      }), null)
+    }), null)
+    
+    # Etiquetas adicionales
+    additional_tags = optional(map(string), {})
+  }))
+  default = {}
+}
+
 variable "ecs_services" {
   description = "Configuración de servicios ECS"
   type = map(object({
@@ -262,6 +331,14 @@ variable "ecs_services" {
     error_message = "Al menos un contenedor debe ser marcado como esencial (essential = true) en cada servicio ECS."
   }
 
+  # Validación para asegurar que el contenedor referenciado en el balanceador de carga existe
+  # validation {
+  #   condition = alltrue([
+  #     for k, v in var.ecs_services : 
+  #     v.load_balancer == null || contains(keys(v.containers), v.load_balancer.container_name)
+  #   ])
+  #   error_message = "El contenedor especificado en load_balancer.container_name debe existir en el mapa de contenedores."
+  # }
 
   # Validación para asegurar que el contenedor referenciado en el balanceador de carga existe
   validation {
@@ -298,32 +375,3 @@ variable "ecs_services" {
   default = {}
 }
 
-variable "project" {
-  description = "Nombre del proyecto asociado a los servicios ECS"
-  type        = string
-
-  validation {
-    condition     = length(var.project) > 0
-    error_message = "El valor de project no puede estar vacío."
-  }
-}
-
-variable "client" {
-  description = "Nombre del cliente asociado a los servicios ECS"
-  type        = string
-
-  validation {
-    condition     = length(var.client) > 0
-    error_message = "El valor de client no puede estar vacío."
-  }
-}
-
-variable "environment" {
-  description = "Entorno en el que se desplegarán los servicios ECS (dev, qa, pdn)"
-  type        = string
-
-  validation {
-    condition     = contains(["dev", "qa", "pdn"], var.environment)
-    error_message = "El entorno debe ser uno de: dev, qa, pdn."
-  }
-}

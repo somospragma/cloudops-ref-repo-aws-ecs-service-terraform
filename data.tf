@@ -1,23 +1,15 @@
-data "aws_ecs_cluster" "cluster" {
+data "aws_caller_identity" "current" {
   provider = aws.project
-  for_each = { for item in var.ecs_config :
-    item.functionality => {
-      "cluster_name" : item.cluster_name
-    }
-  }
-  cluster_name = each.value["cluster_name"]
 }
-
 
 data "aws_region" "current" {
   provider = aws.project
 }
 
-
-
-########################################################################
-#Data Account ID
-########################################################################
-data "aws_caller_identity" "current" {
+# Obtener información del cluster ECS
+data "aws_ecs_cluster" "this" {
   provider = aws.project
+  for_each = var.ecs_services
+  
+  cluster_name = each.value.cluster_name
 }

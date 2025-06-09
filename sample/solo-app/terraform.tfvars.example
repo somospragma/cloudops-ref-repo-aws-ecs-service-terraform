@@ -1,0 +1,143 @@
+# Configuración general
+client      = "pragma"
+project     = "api"
+environment = "dev"
+
+# Configuración de servicios ECS
+ecs_services = {
+  "api" = {
+    # Configuración básica del servicio
+    cluster_name               = "pragma-api-dev-cluster"
+    desired_count              = 2
+    deployment_maximum_percent = 200
+    deployment_minimum_percent = 100
+    enable_execute_command     = true
+    force_new_deployment       = false
+    health_check_grace_period  = 60
+    launch_type                = "FARGATE"
+    platform_version           = "LATEST"
+    scheduling_strategy        = "REPLICA"
+
+    # Configuración de red
+    assign_public_ip = false
+    subnets          = ["subnet-0abc123def456789a", "subnet-0bcd234efa5678901"]
+    security_groups  = ["sg-0abc123def456789a"]
+
+    # Configuración de definición de tarea
+    task_cpu                 = 1024
+    task_memory              = 2048
+    requires_compatibilities = ["FARGATE"]
+    execution_role_arn       = "arn:aws:iam::123456789012:role/pragma-api-dev-ecs-execution-role"
+    task_role_arn            = "arn:aws:iam::123456789012:role/pragma-api-dev-ecs-task-role"
+
+    # Configuración de contenedores
+    containers = {
+      "app" = {
+        # Configuración básica del contenedor
+        image                    = "123456789012.dkr.ecr.us-east-1.amazonaws.com/pragma-api:latest"
+        cpu                      = 896
+        memory                   = 1792
+        essential                = true
+        readonly_root_filesystem = false
+        
+        # Configuración de comandos y entorno
+        command                  = ["/bin/sh", "-c", "npm start"]
+        environment = [
+          {
+            name  = "NODE_ENV"
+            value = "development"
+          },
+          {
+            name  = "PORT"
+            value = "8080"
+          },
+          {
+            name  = "LOG_LEVEL"
+            value = "info"
+          }
+        ]
+        
+        # Configuración de secretos
+        secrets = [
+          {
+            name       = "DATABASE_URL"
+            value_from = "arn:aws:ssm:us-east-1:123456789012:parameter/pragma/api/dev/database-url"
+          },
+          {
+            name       = "API_KEY"
+            value_from = "arn:aws:secretsmanager:us-east-1:123456789012:secret:pragma/api/dev/api-key:key::"
+          }
+        ]
+        
+        # Configuración de puertos
+        port_mappings = [
+          {
+            container_port = 8080
+            host_port      = 8080
+            protocol       = "tcp"
+          }
+        ]
+        
+        # Configuración de healthcheck
+        healthcheck = {
+          command     = ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+          interval    = 30
+          timeout     = 5
+          retries     = 3
+          start_period = 60
+        }
+        
+        # Configuración de logs
+        enable_cloudwatch_logs = true
+      }
+    }
+    
+    # Configuración de balanceador de carga
+    load_balancer = {
+      target_group_arn = "arn:aws:elasticloadbalancing:us-east-1:123456789012:targetgroup/pragma-api-dev/abcdef1234567890"
+      container_name   = "app"
+      container_port   = 8080
+    }
+    
+    # Configuración de Auto Scaling
+    enable_autoscaling = true
+    autoscaling_config = {
+      min_capacity = 2
+      max_capacity = 10
+      scaling_policies = [
+        {
+          name        = "cpu-tracking"
+          policy_type = "TargetTrackingScaling"
+          target_tracking_configuration = {
+            target_value       = 70.0
+            scale_in_cooldown  = 300
+            scale_out_cooldown = 300
+            predefined_metric_type = "ECSServiceAverageCPUUtilization"
+          }
+        },
+        {
+          name        = "memory-tracking"
+          policy_type = "TargetTrackingScaling"
+          target_tracking_configuration = {
+            target_value       = 80.0
+            scale_in_cooldown  = 300
+            scale_out_cooldown = 300
+            predefined_metric_type = "ECSServiceAverageMemoryUtilization"
+          }
+        }
+      ]
+    }
+    
+    # Configuración de logs
+    log_retention_days     = 30
+    log_encryption_key_arn = "arn:aws:kms:us-east-1:123456789012:key/1234abcd-12ab-34cd-56ef-1234567890ab"
+    
+    # Etiquetas adicionales
+    additional_tags = {
+      "service-tier"       = "critical"
+      "backup-policy"      = "daily"
+      "data-classification" = "internal"
+      "cost-center"        = "tech-dept"
+    }
+  }
+}
