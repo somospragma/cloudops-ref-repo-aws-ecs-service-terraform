@@ -12,6 +12,16 @@ resource "aws_ecs_task_definition" "this" {
   task_role_arn            = each.value.task_role_arn
   pid_mode                 = each.value.pid_mode  # Agregar soporte para pid_mode
   
+  # Configuración de runtime platform para ARM64
+  dynamic "runtime_platform" {
+    for_each = each.value.runtime_platform != null ? [each.value.runtime_platform] : []
+    
+    content {
+      operating_system_family = runtime_platform.value.operating_system_family
+      cpu_architecture        = runtime_platform.value.cpu_architecture
+    }
+  }
+  
   # Configuración de contenedores
   container_definitions = jsonencode([
     for container_key, container in each.value.containers : {

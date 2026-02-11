@@ -34,6 +34,12 @@ variable "ecs_services" {
     execution_role_arn       = string
     task_role_arn            = string
 
+    # Configuración de runtime platform para soporte ARM64/x86_64
+    runtime_platform = optional(object({
+      operating_system_family = optional(string, "LINUX")
+      cpu_architecture        = optional(string, "X86_64") # X86_64 o ARM64
+    }), null)
+
     # Configuración de contenedores
     containers = map(object({
       image                    = string
