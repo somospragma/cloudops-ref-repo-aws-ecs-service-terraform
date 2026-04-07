@@ -333,3 +333,8 @@ variable "environment" {
     error_message = "El entorno debe ser uno de: dev, qa, pdn."
   }
 }
+
+variable "region" {
+  description = "AWS region para los recursos ECS"
+  type        = string
+}

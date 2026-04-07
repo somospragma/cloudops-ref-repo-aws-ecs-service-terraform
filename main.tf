@@ -82,7 +82,7 @@ resource "aws_ecs_task_definition" "this" {
         logDriver = "awslogs"
         options   = {
           "awslogs-group"         = "/aws/ecs/${local.service_names[each.key]}/${container_key}"
-          "awslogs-region"        = data.aws_region.current.id
+          "awslogs-region"        = var.region
           "awslogs-stream-prefix" = container_key
           "awslogs-create-group"  = "true"
         }
