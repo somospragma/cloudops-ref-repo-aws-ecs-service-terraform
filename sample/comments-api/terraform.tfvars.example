@@ -1,0 +1,250 @@
+# Configuración general
+client      = "creci"
+project     = "mapa-crecimiento"
+environment = "dev"
+
+# Configuración de servicios ECS
+ecs_services = {
+  "comments-api" = {
+    # Configuración básica del servicio
+    cluster_name               = "Cluster_mapa-de-crecimiento"
+    desired_count              = 1
+    deployment_maximum_percent = 200
+    deployment_minimum_percent = 100
+    enable_execute_command     = true
+    force_new_deployment       = true
+    health_check_grace_period  = 300
+    launch_type                = "FARGATE"
+    platform_version           = "LATEST"
+    scheduling_strategy        = "REPLICA"
+
+    # Configuración de red
+    assign_public_ip = false
+    subnets          = ["subnet-0a99df9542bf1f876", "subnet-0aff4a61784cde71a"]
+    security_groups  = ["sg-01bda60374dbac0fe", "sg-0bfd1525450dcbffe"]
+
+    # Configuración de definición de tarea
+    task_cpu                 = 256
+    task_memory              = 1024
+    requires_compatibilities = ["FARGATE"]
+    execution_role_arn       = "arn:aws:iam::298782619489:role/exec-comments-role" # Reemplazar con module.iam_role_comments-api.iam_role_info["exec-comments"]["role_arn"]
+    task_role_arn            = "arn:aws:iam::298782619489:role/comments-api-role"  # Reemplazar con module.iam_role_comments-api.iam_role_info["comments-api"]["role_arn"]
+
+    # Configuración de contenedores
+    containers = {
+      "comments-api" = {
+        # Configuración básica del contenedor
+        image                    = "298782619489.dkr.ecr.us-east-1.amazonaws.com/map-growth-comments-api:latest" # Reemplazar con module.ecr-repo-comments-api.ecr_info["map-growth-comments-api"].repository_url
+        cpu                      = 200
+        memory                   = 768
+        essential                = true
+        readonly_root_filesystem = false
+        
+        # Configuración de puertos
+        port_mappings = [
+          {
+            container_port = 9040
+            host_port      = 9040
+            protocol       = "tcp"
+          }
+        ]
+        
+        # Configuración de secretos
+        secrets = [
+          {
+            name       = "URL_DATABASE"
+            value_from = "arn:aws:secretsmanager:us-east-1:298782619489:secret:dev/Creci/comments-api:URL_DATABASE::"
+          },
+          {
+            name       = "PASSWORD_DATABASE"
+            value_from = "arn:aws:secretsmanager:us-east-1:298782619489:secret:dev/Creci/comments-api:PASSWORD_DATABASE::"
+          },
+          {
+            name       = "API_KEY_VALUE"
+            value_from = "arn:aws:secretsmanager:us-east-1:298782619489:secret:dev/Creci/comments-api:API_KEY_VALUE::"
+          },
+          {
+            name       = "USER_DATABASE"
+            value_from = "arn:aws:secretsmanager:us-east-1:298782619489:secret:dev/Creci/comments-api:USER_DATABASE::"
+          },
+          # Parámetros SSM convertidos a secretos
+          {
+            name       = "API_KEY"
+            value_from = "arn:aws:ssm:us-east-1:298782619489:parameter//comments/API_KEY"
+          },
+          {
+            name       = "DRIVER_DATABASE"
+            value_from = "arn:aws:ssm:us-east-1:298782619489:parameter//comments/DRIVER_DATABASE"
+          },
+          {
+            name       = "DATASOURCE_TYPE"
+            value_from = "arn:aws:ssm:us-east-1:298782619489:parameter//comments/DATASOURCE_TYPE"
+          },
+          {
+            name       = "DATASOURCE_DATABASE_PLATFORM"
+            value_from = "arn:aws:ssm:us-east-1:298782619489:parameter//comments/DATASOURCE_DATABASE_PLATFORM"
+          },
+          {
+            name       = "TOMCAT_MAX_ACTIVE"
+            value_from = "arn:aws:ssm:us-east-1:298782619489:parameter//comments/TOMCAT_MAX_ACTIVE"
+          },
+          {
+            name       = "TOMCAT_MIN_IDLE"
+            value_from = "arn:aws:ssm:us-east-1:298782619489:parameter//comments/TOMCAT_MIN_IDLE"
+          },
+          {
+            name       = "HIBERNATE_DDL"
+            value_from = "arn:aws:ssm:us-east-1:298782619489:parameter//comments/HIBERNATE_DDL"
+          },
+          {
+            name       = "JPA_DATABASE"
+            value_from = "arn:aws:ssm:us-east-1:298782619489:parameter//comments/JPA_DATABASE"
+          },
+          {
+            name       = "JPA_SHOW"
+            value_from = "arn:aws:ssm:us-east-1:298782619489:parameter//comments/JPA_SHOW"
+          },
+          {
+            name       = "JPA_SSL"
+            value_from = "arn:aws:ssm:us-east-1:298782619489:parameter//comments/JPA_SSL"
+          },
+          {
+            name       = "PROFILE"
+            value_from = "arn:aws:ssm:us-east-1:298782619489:parameter//comments/PROFILE"
+          }
+        ]
+        
+        # Configuración de healthcheck
+        healthcheck = {
+          command     = ["CMD-SHELL", "curl -f http://localhost:9040/actuator/health || exit 1"]
+          interval    = 30
+          timeout     = 5
+          retries     = 3
+          start_period = 60
+        }
+        
+        # Configuración de logs
+        enable_cloudwatch_logs = true
+      },
+      
+      # Contenedor del agente Datadog
+      "datadog-agent" = {
+        image = "public.ecr.aws/datadog/agent:latest"
+        cpu   = 56
+        memory = 256
+        essential = false
+        
+        # Variables de entorno para el agente Datadog
+        environment = [
+          {
+            name  = "DD_SITE"
+            value = "datadoghq.com"
+          },
+          {
+            name  = "DD_ECS_COLLECT_RESOURCE_TAGS_EC2"
+            value = "true"
+          },
+          {
+            name  = "DD_APM_ENABLED"
+            value = "true"
+          },
+          {
+            name  = "DD_APM_NON_LOCAL_TRAFFIC"
+            value = "true"
+          },
+          {
+            name  = "DD_LOGS_ENABLED"
+            value = "true"
+          },
+          {
+            name  = "DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL"
+            value = "true"
+          },
+          {
+            name  = "DD_CONTAINER_EXCLUDE"
+            value = "name:datadog-agent"
+          },
+          {
+            name  = "DD_PROCESS_AGENT_ENABLED"
+            value = "true"
+          },
+          {
+            name  = "DD_DOGSTATSD_NON_LOCAL_TRAFFIC"
+            value = "true"
+          }
+        ]
+        
+        # Secretos para el agente Datadog
+        secrets = [
+          {
+            name       = "DD_API_KEY"
+            value_from = "arn:aws:secretsmanager:us-east-1:298782619489:secret:dev/Creci/ecs-datadog:DD_API_KEY::"
+          }
+        ]
+        
+        # Configuración de puertos para el agente
+        port_mappings = [
+          {
+            container_port = 8126
+            host_port      = 8126
+            protocol       = "tcp"
+          },
+          {
+            container_port = 8125
+            host_port      = 8125
+            protocol       = "udp"
+          }
+        ]
+        
+        # Configuración de logs para el agente
+        log_configuration = {
+          log_driver = "awslogs"
+          options = {
+            "awslogs-group"        = "/aws/ecs/creci-mapa-crecimiento-dev-comments-api"
+            "awslogs-create-group" = "true"
+            "awslogs-region"       = "us-east-1"
+            "awslogs-stream-prefix" = "datadog-agent"
+          }
+        }
+      }
+    }
+    
+    # Configuración de balanceador de carga
+    load_balancer = {
+      target_group_arn = "arn:aws:elasticloadbalancing:us-east-1:298782619489:targetgroup/ecs-mc-target3/d7b0011fe4ef83ad"
+      container_name   = "comments-api"
+      container_port   = 9040
+    }
+    
+    # Configuración de Auto Scaling
+    enable_autoscaling = true
+    autoscaling_config = {
+      min_capacity = 0
+      max_capacity = 1
+      scaling_policies = [
+        {
+          name        = "cpu-tracking"
+          policy_type = "TargetTrackingScaling"
+          target_tracking_configuration = {
+            target_value       = 80.0
+            scale_in_cooldown  = 300
+            scale_out_cooldown = 300
+            predefined_metric_type = "ECSServiceAverageCPUUtilization"
+          }
+        }
+      ]
+    }
+    
+    # Configuración de logs
+    log_retention_days = 30
+    
+    # Etiquetas adicionales
+    additional_tags = {
+      "application" = "comments-api"
+      "ticket"      = "7002"
+      "accessclass" = "private"
+      "scheduler"   = "false"
+      "apagado"     = "true"
+    }
+  }
+}

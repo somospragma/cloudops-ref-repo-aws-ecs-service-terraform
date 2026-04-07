@@ -178,7 +178,7 @@ resource "aws_ecs_service" "this" {
   for_each = var.ecs_services
   
   name                               = local.service_names[each.key]
-  cluster                            = data.aws_ecs_cluster.this[each.key].id
+  cluster                            = each.value.cluster_name
   task_definition                    = aws_ecs_task_definition.this[each.key].arn
   desired_count                      = each.value.desired_count
   deployment_maximum_percent         = each.value.deployment_maximum_percent
@@ -316,7 +316,7 @@ resource "aws_appautoscaling_target" "this" {
   
   max_capacity       = each.value.autoscaling_config.max_capacity
   min_capacity       = each.value.autoscaling_config.min_capacity
-  resource_id        = "service/${data.aws_ecs_cluster.this[each.key].cluster_name}/${aws_ecs_service.this[each.key].name}"
+  resource_id        = "service/${each.value.cluster_name}/${aws_ecs_service.this[each.key].name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
 }
